@@ -1,0 +1,241 @@
+// Styles for Obsidian Bases
+
+// Base containers
+.base-inline,
+.base-embed {
+  margin: 1.5rem 0;
+  width: 100%;
+}
+
+.base-error {
+  color: var(--error);
+  padding: 1rem;
+  border: 1px solid var(--error);
+  border-radius: 0.5rem;
+  background: var(--errorBg, #fee);
+}
+
+// View tabs
+.base-view-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.base-view-tab {
+  padding: 0.5rem 1rem;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-size: 1rem;
+  color: var(--secondary);
+  transition: all 0.2s ease;
+
+  &:hover {
+    color: var(--text);
+    border-bottom-color: var(--secondary);
+  }
+
+  &.active {
+    color: var(--text);
+    border-bottom-color: var(--primary);
+    font-weight: 600;
+  }
+}
+
+// Table view
+.base-table-container {
+  overflow-x: auto;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+}
+
+.base-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+
+  thead {
+    background: var(--bg-light, #f8f9fa);
+    border-bottom: 2px solid var(--border);
+
+    th {
+      padding: 0.75rem 1rem;
+      text-align: left;
+      font-weight: 600;
+      color: var(--text);
+    }
+  }
+
+  tbody {
+    tr {
+      border-bottom: 1px solid var(--border);
+      transition: background 0.15s ease;
+
+      &:hover {
+        background: var(--bg-light, #f8f9fa);
+      }
+
+      &:last-child {
+        border-bottom: none;
+      }
+
+      td {
+        padding: 0.75rem 1rem;
+        color: var(--text);
+
+        a {
+          color: var(--primary);
+          text-decoration: none;
+
+          &:hover {
+            text-decoration: underline;
+          }
+        }
+      }
+    }
+  }
+}
+
+// List view
+.base-list-container {
+  padding: 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+}
+
+.base-list {
+  margin: 0;
+  padding-left: 1.5rem;
+
+  li {
+    margin: 0.5rem 0;
+    line-height: 1.6;
+
+    a {
+      color: var(--primary);
+      text-decoration: none;
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
+}
+
+// Cards view
+.base-cards-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+
+  &[data-row-height="short"] {
+    .base-card {
+      min-height: 100px;
+    }
+  }
+
+  &[data-row-height="medium"] {
+    .base-card {
+      min-height: 150px;
+    }
+  }
+
+  &[data-row-height="tall"] {
+    .base-card {
+      min-height: 200px;
+    }
+  }
+}
+
+.base-card {
+  padding: 0;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  background: var(--bg, white);
+  transition: all 0.2s ease;
+  overflow: hidden;
+
+  &:hover {
+    border-color: var(--primary);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+  }
+}
+
+.base-card-image {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  background: var(--lightgray);
+
+  img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    margin: 0; // Override global img margin
+    border-radius: 0; // Override global img border-radius for flush fit
+  }
+
+  // Add margin after image to separate from properties
+  & + .base-card-property {
+    margin-top: 1.25rem;
+  }
+}
+
+.base-card-property {
+  margin: 0.5rem 0;
+  padding: 0 1.25rem;
+  line-height: 1.5;
+
+  &:first-child {
+    margin-top: 1.25rem;
+  }
+
+  &:last-child {
+    margin-bottom: 1.25rem;
+  }
+}
+
+.base-card-property-name {
+  font-weight: 600;
+  color: var(--secondary);
+  margin-right: 0.25rem;
+}
+
+.base-card-property-value {
+  color: var(--text);
+
+  a {
+    color: var(--primary);
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+// Dark mode adjustments
+@media (prefers-color-scheme: dark) {
+  .base-table thead {
+    background: var(--bg-dark, #1a1a1a);
+  }
+
+  .base-table tbody tr:hover {
+    background: var(--bg-dark, #1a1a1a);
+  }
+
+  .base-card {
+    background: var(--bg-dark, #1a1a1a);
+
+    &:hover {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+  }
+}
