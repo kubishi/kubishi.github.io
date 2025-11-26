@@ -42,7 +42,6 @@ export const defaultContentPageLayout: PageLayout = {
       ],
     }),
     Component.DesktopOnly(Component.TableOfContents()),
-    Component.DesktopOnly(Component.Graph()),
     Component.DesktopOnly(Component.Backlinks()),
   ],
   right: [],
