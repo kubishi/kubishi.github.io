@@ -181,24 +181,28 @@ export const Bases: QuartzTransformerPlugin<Partial<Options>> = (userOpts) => {
         return negated ? !isEmpty : isEmpty
       }
 
-      // Handle equality checks
-      const eqMatch = condition.match(/^(.+?)\s*==\s*"(.+)"$/)
+      // Handle equality checks (support both single and double quotes)
+      const eqMatch = condition.match(/^(.+?)\s*==\s*["'](.+?)["']$/)
       if (eqMatch) {
         const [, propertyPath, expectedValue] = eqMatch
         const actualValue = getPropertyValue(file, propertyPath.trim())
         return actualValue === expectedValue
       }
 
-      // Handle inequality checks
-      const neqMatch = condition.match(/^(.+?)\s*!=\s*"(.+)"$/)
+      // Handle inequality checks (support both single and double quotes)
+      const neqMatch = condition.match(/^(.+?)\s*!=\s*["'](.+?)["']$/)
       if (neqMatch) {
         const [, propertyPath, expectedValue] = neqMatch
         const actualValue = getPropertyValue(file, propertyPath.trim())
         return actualValue !== expectedValue
       }
 
-      // Handle contains checks (for arrays)
-      const containsMatch = condition.match(/^(.+?)\s*contains\s+"(.+)"$/)
+      // Handle contains checks (for arrays) - support both syntaxes:
+      // "property contains 'value'" and "property.contains('value')"
+      let containsMatch = condition.match(/^(.+?)\.contains\(["'](.+?)["']\)$/)
+      if (!containsMatch) {
+        containsMatch = condition.match(/^(.+?)\s+contains\s+["'](.+?)["']$/)
+      }
       if (containsMatch) {
         const [, propertyPath, searchValue] = containsMatch
         const actualValue = getPropertyValue(file, propertyPath.trim())
@@ -229,11 +233,15 @@ export const Bases: QuartzTransformerPlugin<Partial<Options>> = (userOpts) => {
 
       // Handle special "file" namespace
       if (part === "file") {
-        current = file.frontmatter._file || {
-          name: path.basename(file.filePath, ".md"),
-          folder: path.dirname(file.filePath),
-          path: file.filePath,
-          slug: file.slug, // Add slug for linking
+        current = {
+          ...(file.frontmatter._file || {
+            name: path.basename(file.filePath, ".md"),
+            folder: path.dirname(file.filePath),
+            path: file.filePath,
+            slug: file.slug,
+          }),
+          // Also include frontmatter properties accessible via file.*
+          tags: file.frontmatter.tags,
         }
         continue
       }

@@ -8,11 +8,11 @@
 }
 
 .base-error {
-  color: var(--error);
+  color: var(--dark);
   padding: 1rem;
-  border: 1px solid var(--error);
+  border: 1px solid var(--lightgray);
   border-radius: 0.5rem;
-  background: var(--errorBg, #fee);
+  background: var(--highlight);
 }
 
 // View tabs
@@ -20,7 +20,7 @@
   display: flex;
   gap: 0.5rem;
   margin-bottom: 1rem;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--lightgray);
 }
 
 .base-view-tab {
@@ -47,35 +47,37 @@
 
 // Table view
 .base-table-container {
-  overflow-x: auto;
-  border-radius: 0.5rem;
-  border: 1px solid var(--border);
+  background: var(--light);
 }
 
 .base-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.9rem;
+  table-layout: auto;
 
   thead {
-    background: var(--bg-light, #f8f9fa);
-    border-bottom: 2px solid var(--border);
+    background: var(--highlight);
+    border-bottom: 2px solid var(--lightgray);
 
     th {
-      padding: 0.75rem 1rem;
+      padding: 0.75rem 0.5rem;
       text-align: left;
       font-weight: 600;
-      color: var(--text);
+      color: var(--darkgray);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
   }
 
   tbody {
     tr {
-      border-bottom: 1px solid var(--border);
+      border-bottom: 1px solid var(--lightgray);
       transition: background 0.15s ease;
 
       &:hover {
-        background: var(--bg-light, #f8f9fa);
+        background: var(--highlight);
       }
 
       &:last-child {
@@ -83,14 +85,22 @@
       }
 
       td {
-        padding: 0.75rem 1rem;
-        color: var(--text);
+        padding: 0.75rem 0.5rem;
+        color: var(--darkgray);
+        max-width: 300px;
+        overflow: hidden;
+        text-overflow: ellipsis;
 
         a {
-          color: var(--primary);
+          color: var(--secondary);
           text-decoration: none;
+          display: block;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
 
           &:hover {
+            color: var(--tertiary);
             text-decoration: underline;
           }
         }
@@ -99,11 +109,25 @@
   }
 }
 
+// Responsive table adjustments
+@media (max-width: 768px) {
+  .base-table {
+    font-size: 0.85rem;
+
+    thead th,
+    tbody td {
+      padding: 0.5rem 0.25rem;
+    }
+
+    tbody td {
+      max-width: 200px;
+    }
+  }
+}
+
 // List view
 .base-list-container {
-  padding: 1rem;
-  border-radius: 0.5rem;
-  border: 1px solid var(--border);
+  background: var(--light);
 }
 
 .base-list {
@@ -113,12 +137,14 @@
   li {
     margin: 0.5rem 0;
     line-height: 1.6;
+    color: var(--darkgray);
 
     a {
-      color: var(--primary);
+      color: var(--secondary);
       text-decoration: none;
 
       &:hover {
+        color: var(--tertiary);
         text-decoration: underline;
       }
     }
@@ -128,8 +154,20 @@
 // Cards view
 .base-cards-container {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 1rem;
+
+  // Mobile: 1 column
+  grid-template-columns: 1fr;
+
+  // Tablet: 2 columns
+  @media (min-width: 600px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  // Desktop: 3 columns
+  @media (min-width: 900px) {
+    grid-template-columns: repeat(3, 1fr);
+  }
 
   &[data-row-height="short"] {
     .base-card {
@@ -153,14 +191,14 @@
 .base-card {
   padding: 0;
   border-radius: 0.5rem;
-  border: 1px solid var(--border);
-  background: var(--bg, white);
+  border: 1px solid var(--lightgray);
+  background: var(--light);
   transition: all 0.2s ease;
   overflow: hidden;
 
   &:hover {
-    border-color: var(--primary);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-color: var(--secondary);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     transform: translateY(-2px);
   }
 }
@@ -209,33 +247,16 @@
 }
 
 .base-card-property-value {
-  color: var(--text);
+  color: var(--darkgray);
 
   a {
-    color: var(--primary);
+    color: var(--secondary);
     text-decoration: none;
 
     &:hover {
+      color: var(--tertiary);
       text-decoration: underline;
     }
   }
 }
 
-// Dark mode adjustments
-@media (prefers-color-scheme: dark) {
-  .base-table thead {
-    background: var(--bg-dark, #1a1a1a);
-  }
-
-  .base-table tbody tr:hover {
-    background: var(--bg-dark, #1a1a1a);
-  }
-
-  .base-card {
-    background: var(--bg-dark, #1a1a1a);
-
-    &:hover {
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    }
-  }
-}

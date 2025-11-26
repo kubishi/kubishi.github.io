@@ -27,8 +27,8 @@ const PersonProfile: QuartzComponent = ({ fileData, displayClass }: QuartzCompon
       const imagePath = wikilinkMatch[1]
       // Extract just the filename
       const filename = imagePath.split('/').pop() || imagePath
-      // Images are in the People/images/ directory
-      return `images/${filename}`
+      // Images are in the People/images/ directory - use absolute path
+      return `/People/images/${filename}`
     }
 
     // Otherwise assume it's a direct URL or path

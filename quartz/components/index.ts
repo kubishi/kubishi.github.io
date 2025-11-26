@@ -24,6 +24,8 @@ import Comments from "./Comments"
 import Flex from "./Flex"
 import ConditionalRender from "./ConditionalRender"
 import PersonProfile from "./PersonProfile"
+import PublicationProfile from "./PublicationProfile"
+import MediaProfile from "./MediaProfile"
 
 export {
   ArticleTitle,
@@ -52,4 +54,6 @@ export {
   Flex,
   ConditionalRender,
   PersonProfile,
+  PublicationProfile,
+  MediaProfile,
 }
