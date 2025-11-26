@@ -16,7 +16,7 @@ const config: QuartzConfig = {
       provider: "plausible",
     },
     locale: "en-US",
-    baseUrl: "kubishi.github.io",
+    baseUrl: "research.kubishi.com",
     ignorePatterns: ["private", "templates", ".obsidian"],
     defaultDateType: "modified",
     theme: {
@@ -87,6 +87,7 @@ const config: QuartzConfig = {
       }),
       Plugin.Assets(),
       Plugin.Static(),
+      Plugin.CNAME(),
       Plugin.Favicon(),
       Plugin.NotFoundPage(),
       // Comment out CustomOgImages to speed up build time
