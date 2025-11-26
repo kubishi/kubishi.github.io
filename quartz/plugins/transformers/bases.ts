@@ -166,7 +166,7 @@ export const Bases: QuartzTransformerPlugin<Partial<Options>> = (userOpts) => {
   }
 
   // Helper to evaluate filter conditions
-  function evaluateCondition(condition: string, file: FileData): boolean {
+  function evaluateCondition(condition: string, file: FileData, baseData: BaseDefinition, allFiles?: FileData[]): boolean {
     try {
       // Handle isEmpty() checks
       if (condition.includes(".isEmpty()")) {
@@ -181,11 +181,44 @@ export const Bases: QuartzTransformerPlugin<Partial<Options>> = (userOpts) => {
         return negated ? !isEmpty : isEmpty
       }
 
+      // Handle equality checks with boolean values (no quotes)
+      const boolEqMatch = condition.match(/^(.+?)\s*==\s*(true|false)$/)
+      if (boolEqMatch) {
+        const [, propertyPath, expectedValue] = boolEqMatch
+        let actualValue: any
+
+        // Check if this is a formula
+        if (propertyPath.trim().startsWith("formula.")) {
+          const formulaName = propertyPath.trim().replace("formula.", "")
+          const formula = baseData.formulas?.[formulaName]
+          if (formula) {
+            actualValue = evaluateExpression(formula, file, baseData, allFiles)
+          }
+        } else {
+          actualValue = getPropertyValue(file, propertyPath.trim())
+        }
+
+        const expectedBool = expectedValue === 'true'
+        return actualValue === expectedBool
+      }
+
       // Handle equality checks (support both single and double quotes)
       const eqMatch = condition.match(/^(.+?)\s*==\s*["'](.+?)["']$/)
       if (eqMatch) {
         const [, propertyPath, expectedValue] = eqMatch
-        const actualValue = getPropertyValue(file, propertyPath.trim())
+        let actualValue: any
+
+        // Check if this is a formula
+        if (propertyPath.trim().startsWith("formula.")) {
+          const formulaName = propertyPath.trim().replace("formula.", "")
+          const formula = baseData.formulas?.[formulaName]
+          if (formula) {
+            actualValue = evaluateFormula(formula, file, baseData, allFiles)
+          }
+        } else {
+          actualValue = getPropertyValue(file, propertyPath.trim())
+        }
+
         return actualValue === expectedValue
       }
 
@@ -193,7 +226,19 @@ export const Bases: QuartzTransformerPlugin<Partial<Options>> = (userOpts) => {
       const neqMatch = condition.match(/^(.+?)\s*!=\s*["'](.+?)["']$/)
       if (neqMatch) {
         const [, propertyPath, expectedValue] = neqMatch
-        const actualValue = getPropertyValue(file, propertyPath.trim())
+        let actualValue: any
+
+        // Check if this is a formula
+        if (propertyPath.trim().startsWith("formula.")) {
+          const formulaName = propertyPath.trim().replace("formula.", "")
+          const formula = baseData.formulas?.[formulaName]
+          if (formula) {
+            actualValue = evaluateFormula(formula, file, baseData, allFiles)
+          }
+        } else {
+          actualValue = getPropertyValue(file, propertyPath.trim())
+        }
+
         return actualValue !== expectedValue
       }
 
@@ -210,6 +255,21 @@ export const Bases: QuartzTransformerPlugin<Partial<Options>> = (userOpts) => {
           return actualValue.includes(searchValue)
         }
         return false
+      }
+
+      // Check if this is a complex expression (contains method calls or operators)
+      if (condition.includes('(') || condition.includes('.map') || condition.includes('.reduce') || condition.includes('.filter')) {
+        // Evaluate as a complex expression that should return a boolean
+        const result = evaluateExpression(condition, file, baseData, allFiles)
+        return Boolean(result)
+      }
+
+      // Handle negated boolean properties (e.g., "!in_stock")
+      if (condition.startsWith('!')) {
+        const propertyPath = condition.slice(1).trim()
+        const value = getPropertyValue(file, propertyPath)
+        // Negate the boolean value
+        return !Boolean(value)
       }
 
       // Default: try to evaluate as boolean property
@@ -264,15 +324,15 @@ export const Bases: QuartzTransformerPlugin<Partial<Options>> = (userOpts) => {
   }
 
   // Helper to evaluate filters
-  function evaluateFilter(filter: BaseFilter | undefined, file: FileData): boolean {
+  function evaluateFilter(filter: BaseFilter | undefined, file: FileData, baseData: BaseDefinition, allFiles?: FileData[]): boolean {
     if (!filter) return true
 
     if (filter.and) {
       return filter.and.every((cond) => {
         if (typeof cond === "string") {
-          return evaluateCondition(cond, file)
+          return evaluateCondition(cond, file, baseData, allFiles)
         } else {
-          return evaluateFilter(cond, file)
+          return evaluateFilter(cond, file, baseData, allFiles)
         }
       })
     }
@@ -280,9 +340,9 @@ export const Bases: QuartzTransformerPlugin<Partial<Options>> = (userOpts) => {
     if (filter.or) {
       return filter.or.some((cond) => {
         if (typeof cond === "string") {
-          return evaluateCondition(cond, file)
+          return evaluateCondition(cond, file, baseData, allFiles)
         } else {
-          return evaluateFilter(cond, file)
+          return evaluateFilter(cond, file, baseData, allFiles)
         }
       })
     }
@@ -331,8 +391,9 @@ export const Bases: QuartzTransformerPlugin<Partial<Options>> = (userOpts) => {
   }
 
   // Helper to evaluate formulas
-  function evaluateFormula(formula: string, file: FileData, baseData: BaseDefinition): string {
+  function evaluateFormula(formula: string, file: FileData, baseData: BaseDefinition, allFiles?: FileData[]): string {
     try {
+      console.log(`[Bases] Evaluating formula for ${file.slug}: ${formula}`)
       // Handle link() function: link(url, text)
       const linkMatch = formula.match(/^link\((.+)\)$/)
       if (linkMatch) {
@@ -350,10 +411,10 @@ export const Bases: QuartzTransformerPlugin<Partial<Options>> = (userOpts) => {
             href = file.slug
           } else {
             // Otherwise evaluate the expression (might be a URL or other string)
-            href = evaluateFormula(args[0], file, baseData)
+            href = evaluateFormula(args[0], file, baseData, allFiles)
           }
 
-          const text = evaluateFormula(args[1], file, baseData)
+          const text = evaluateFormula(args[1], file, baseData, allFiles)
           if (href && text) {
             // Don't add .html extension - CrawlLinks will handle the transformation
             // Just provide the slug or URL as-is
@@ -368,12 +429,12 @@ export const Bases: QuartzTransformerPlugin<Partial<Options>> = (userOpts) => {
       if (ifMatch) {
         const args = parseFunctionArgs(ifMatch[1])
         if (args.length >= 3) {
-          const condValue = evaluateExpression(args[0], file, baseData)
+          const condValue = evaluateExpression(args[0], file, baseData, allFiles)
           const condition = condValue && condValue !== "" && condValue !== "false"
           if (condition) {
-            return evaluateFormula(args[1], file, baseData)
+            return evaluateFormula(args[1], file, baseData, allFiles)
           } else {
-            return evaluateFormula(args[2], file, baseData)
+            return evaluateFormula(args[2], file, baseData, allFiles)
           }
         }
         return ""
@@ -410,11 +471,11 @@ export const Bases: QuartzTransformerPlugin<Partial<Options>> = (userOpts) => {
           parts.push(current.trim())
         }
 
-        return parts.map((p) => evaluateFormula(p, file, baseData)).join("")
+        return parts.map((p) => evaluateFormula(p, file, baseData, allFiles)).join("")
       }
 
       // Otherwise, treat as simple expression
-      return evaluateExpression(formula, file, baseData)
+      return evaluateExpression(formula, file, baseData, allFiles)
     } catch (err) {
       console.warn(`Failed to evaluate formula: ${formula}`, err)
       return ""
@@ -452,7 +513,10 @@ export const Bases: QuartzTransformerPlugin<Partial<Options>> = (userOpts) => {
       return text // Not a wikilink, return as-is
     }
 
-    const pagePath = wikilinkMatch[1]
+    let pagePath = wikilinkMatch[1]
+    
+    // Normalize relative paths (remove ../ prefixes)
+    pagePath = pagePath.replace(/^(\.\.\/)+/, '')
 
     // Check if it's an image or static asset (has image extension)
     const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp', '.ico']
@@ -465,6 +529,9 @@ export const Bases: QuartzTransformerPlugin<Partial<Options>> = (userOpts) => {
       return filename || pagePath
     }
 
+    // Get just the filename part for matching
+    const pageFileName = pagePath.split('/').pop() || pagePath
+
     // Try to find the file by matching the path (for markdown files)
     const targetFile = allFiles.find(f => {
       const filePath = f.filePath.replace(/\.md$/, '')
@@ -474,7 +541,8 @@ export const Bases: QuartzTransformerPlugin<Partial<Options>> = (userOpts) => {
       return filePath === pagePath ||
              filePath.endsWith('/' + pagePath) ||
              filePath === pagePath.replace(/^\//, '') ||
-             fileName === pagePath
+             fileName === pagePath ||
+             fileName === pageFileName
     })
 
     if (targetFile) {
@@ -492,12 +560,23 @@ export const Bases: QuartzTransformerPlugin<Partial<Options>> = (userOpts) => {
     const wikilinkRegex = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g
 
     return text.replace(wikilinkRegex, (match, pagePath, alias) => {
-      const displayText = alias || pagePath
+      // Normalize relative paths (remove ../ prefixes)
+      let normalizedPath = pagePath.replace(/^(\.\.\/)+/, '')
+      const displayText = alias || normalizedPath.split('/').pop() || normalizedPath
+
+      // Get just the filename part for matching
+      const pageFileName = normalizedPath.split('/').pop() || normalizedPath
 
       // Try to find the file by matching the path
       const targetFile = allFiles.find(f => {
         const filePath = f.filePath.replace(/\.md$/, '')
-        return filePath === pagePath || filePath.endsWith('/' + pagePath) || filePath === pagePath.replace(/^\//, '')
+        const fileName = f.filePath.split('/').pop()?.replace(/\.md$/, '')
+        
+        return filePath === normalizedPath || 
+               filePath.endsWith('/' + normalizedPath) || 
+               filePath === normalizedPath.replace(/^\//, '') ||
+               fileName === pageFileName ||
+               fileName === normalizedPath
       })
 
       if (targetFile) {
@@ -534,16 +613,148 @@ export const Bases: QuartzTransformerPlugin<Partial<Options>> = (userOpts) => {
     return `${month}/${day}/${year}`
   }
 
-  // Helper to evaluate expressions
-  function evaluateExpression(expr: string, file: FileData, _baseData: BaseDefinition): any {
+  // Helper to transform Obsidian-style implicit lambdas to JavaScript arrow functions
+  function transformObsidianExpression(expr: string): string {
+    // Transform .map(expression) to .map(value => expression)
+    // This regex captures map calls with implicit lambda syntax
+    expr = expr.replace(/\.map\(([^)]+)\)/g, (match, body) => {
+      // Check if it already has arrow function syntax
+      if (body.includes('=>')) {
+        return match
+      }
+      // Wrap in arrow function with 'value' parameter
+      return `.map(value => ${body})`
+    })
+
+    // Transform .filter(expression) to .filter(value => expression)
+    expr = expr.replace(/\.filter\(([^)]+)\)/g, (match, body) => {
+      // Check if it already has arrow function syntax
+      if (body.includes('=>')) {
+        return match
+      }
+      // Wrap in arrow function with 'value' parameter
+      return `.filter(value => ${body})`
+    })
+
+    // Transform .reduce(expression, initial) to .reduce((acc, value) => expression, initial)
+    // This is more complex because reduce has two arguments
+    expr = expr.replace(/\.reduce\(([^,]+),\s*([^)]+)\)/g, (match, body, initialValue) => {
+      // Check if it already has arrow function syntax
+      if (body.includes('=>')) {
+        return match
+      }
+      // Wrap in arrow function with 'acc' and 'value' parameters
+      return `.reduce((acc, value) => ${body}, ${initialValue})`
+    })
+
+    return expr
+  }
+
+  // Helper to evaluate expressions with JavaScript-like syntax
+  function evaluateExpression(expr: string, file: FileData, _baseData: BaseDefinition, allFiles?: FileData[]): any {
     // Handle string literals
     if (expr.startsWith('"') && expr.endsWith('"')) {
       return expr.slice(1, -1)
     }
 
-    // Handle property references
-    const value = getPropertyValue(file, expr)
-    return value !== undefined && value !== null ? String(value) : ""
+    // Handle boolean literals
+    if (expr === 'true') return true
+    if (expr === 'false') return false
+
+    // Simple property lookup first
+    const simpleValue = getPropertyValue(file, expr)
+
+    // If it's a simple property access without method calls, return it
+    if (!expr.includes('(') && simpleValue !== undefined) {
+      console.log(`[Bases] Expression "${expr}" for ${file.slug} = ${JSON.stringify(simpleValue)}`)
+      return simpleValue
+    }
+
+    // Transform Obsidian-style implicit lambdas to JavaScript syntax
+    const transformedExpr = transformObsidianExpression(expr)
+
+    // For complex expressions with methods, we need JavaScript evaluation
+    // Build a safe context with the file's properties and helper functions
+    try {
+      // Create a helper that resolves file() calls
+      const fileHelper = (path: string) => {
+        // Find the file that matches this path/wikilink
+        if (!allFiles) return { properties: {} }
+
+        // Extract path from wikilink format [[path|alias]]
+        const pathMatch = path.match(/\[\[([^\]|]+)/)
+        const cleanPath = pathMatch ? pathMatch[1] : path
+
+        // Normalize the path - remove ../ and .md extension
+        let normalizedPath = cleanPath.replace(/^(\.\.\/)+/, '').replace(/\.md$/, '')
+
+        // Get just the filename (last part after /)
+        const fileName = normalizedPath.split('/').pop() || normalizedPath
+
+        // Try multiple matching strategies
+        const targetFile = allFiles.find(f => {
+          // Get the file's path without .md extension
+          const fPath = f.filePath.replace(/\.md$/, '')
+          const fName = fPath.split('/').pop() || ''
+          const fSlug = f.slug
+
+          // Strategy 1: Exact filename match
+          if (fName === fileName) return true
+
+          // Strategy 2: Full path match
+          if (fPath === normalizedPath) return true
+
+          // Strategy 3: Path ends with the normalized path
+          if (fPath.endsWith('/' + normalizedPath) || fPath.endsWith(normalizedPath)) return true
+
+          // Strategy 4: Slug match
+          if (fSlug === normalizedPath || fSlug.endsWith('/' + normalizedPath)) return true
+
+          return false
+        })
+
+        return {
+          properties: targetFile?.frontmatter || {}
+        }
+      }
+
+      const context: any = {
+        // Add a fileMetadata object with metadata (renamed to avoid conflict with file() helper)
+        fileMetadata: {
+          name: file.frontmatter?.name || file.slug,
+          slug: file.slug,
+          path: file.filePath,
+          folder: file.filePath?.split('/').slice(0, -1).join('/') || '',
+        },
+        // Add all frontmatter properties directly to context
+        ...file.frontmatter,
+      }
+
+      // Create a Function that evaluates the expression in the context
+      // We use Function constructor instead of eval for slightly better safety
+      // We pass the file helper as '$file' to avoid naming conflicts
+      const contextKeys = Object.keys(context)
+      const contextValues = contextKeys.map(k => context[k])
+
+      const fn = new Function('$file', ...contextKeys, `
+        "use strict";
+        try {
+          // Alias $file back to 'file' for use in the expression
+          const file = $file;
+          return ${transformedExpr};
+        } catch (e) {
+          console.warn("Expression evaluation error:", e.message);
+          return undefined;
+        }
+      `)
+
+      const result = fn(fileHelper, ...contextValues)
+      console.log(`[Bases] Complex expression "${transformedExpr}" for ${file.slug} = ${JSON.stringify(result)}`)
+      return result
+    } catch (err) {
+      console.warn(`[Bases] Failed to evaluate complex expression "${transformedExpr}":`, err)
+      return simpleValue !== undefined && simpleValue !== null ? String(simpleValue) : ""
+    }
   }
 
   // Helper to sort files
@@ -621,7 +832,7 @@ export const Bases: QuartzTransformerPlugin<Partial<Options>> = (userOpts) => {
           const formulaName = property.replace("formula.", "")
           const formula = baseData.formulas?.[formulaName]
           if (formula) {
-            value = evaluateFormula(formula, file, baseData)
+            value = evaluateFormula(formula, file, baseData, allFiles)
           }
         } else {
           value = getPropertyValue(file, property)
@@ -683,7 +894,7 @@ export const Bases: QuartzTransformerPlugin<Partial<Options>> = (userOpts) => {
             const formulaName = property.replace("formula.", "")
             const formula = baseData.formulas?.[formulaName]
             if (formula) {
-              value = evaluateFormula(formula, file, baseData)
+              value = evaluateFormula(formula, file, baseData, allFiles)
             }
           } else {
             value = getPropertyValue(file, property)
@@ -726,7 +937,7 @@ export const Bases: QuartzTransformerPlugin<Partial<Options>> = (userOpts) => {
             const formulaName = property.replace("formula.", "")
             const formula = baseData.formulas?.[formulaName]
             if (formula) {
-              value = evaluateFormula(formula, file, baseData)
+              value = evaluateFormula(formula, file, baseData, allFiles)
             }
           } else {
             value = getPropertyValue(file, property)
@@ -804,7 +1015,7 @@ export const Bases: QuartzTransformerPlugin<Partial<Options>> = (userOpts) => {
           const formulaName = property.replace("formula.", "")
           const formula = baseData.formulas?.[formulaName]
           if (formula) {
-            value = evaluateFormula(formula, file, baseData)
+            value = evaluateFormula(formula, file, baseData, allFiles)
           }
         } else {
           value = getPropertyValue(file, property)
@@ -846,10 +1057,10 @@ export const Bases: QuartzTransformerPlugin<Partial<Options>> = (userOpts) => {
   // Helper to render a view
   function renderView(view: BaseView, allFiles: FileData[], baseData: BaseDefinition): string {
     // Apply base-level filters first
-    let files = allFiles.filter((file) => evaluateFilter(baseData.filters, file))
+    let files = allFiles.filter((file) => evaluateFilter(baseData.filters, file, baseData, allFiles))
 
     // Apply view-level filters
-    files = files.filter((file) => evaluateFilter(view.filters, file))
+    files = files.filter((file) => evaluateFilter(view.filters, file, baseData, allFiles))
 
     // Sort files
     files = sortFiles(files, view.sort)

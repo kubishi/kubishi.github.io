@@ -123,6 +123,13 @@ function clearActivePopover() {
 document.addEventListener("nav", () => {
   const links = [...document.querySelectorAll("a.internal")] as HTMLAnchorElement[]
   for (const link of links) {
+    // Skip footnote links (both references and backlinks)
+    const href = link.getAttribute("href")
+    if (link.classList.contains("data-footnote-backref") ||
+        (href && (href.startsWith("#fn-") || href.startsWith("#fnref-") || href.startsWith("#user-content-fn-")))) {
+      continue
+    }
+
     link.addEventListener("mouseenter", mouseEnterHandler)
     link.addEventListener("mouseleave", clearActivePopover)
     window.addCleanup(() => {
