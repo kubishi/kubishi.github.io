@@ -305,23 +305,6 @@ PersonProfile.css = `
     justify-content: center;
   }
 }
-
-@media (prefers-color-scheme: dark) {
-  .person-profile {
-    background: var(--dark);
-    border-color: var(--darkgray);
-  }
-
-  .person-link {
-    background: var(--darkgray);
-    border-color: var(--gray);
-  }
-
-  .person-link:hover {
-    background: var(--gray);
-    border-color: var(--light);
-  }
-}
 `
 
 export default (() => PersonProfile) satisfies QuartzComponentConstructor
